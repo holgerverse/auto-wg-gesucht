@@ -34,7 +34,7 @@ def get_login_button(driver: webdriver.Firefox) -> webdriver.remote.webelement.W
         if pattern.match(class_objects[key].text):
             return class_objects[key]
 
-def fill_login_form(driver: webdriver.Firefox, email: str, password: str):
+def fill_login_form(driver: webdriver.Firefox, email: str, password: str) -> bool:
     '''
     Fills the login form.
     
@@ -42,13 +42,14 @@ def fill_login_form(driver: webdriver.Firefox, email: str, password: str):
         driver:   Requires a webdriver sessions running Firefox.
         email:    The email address of the user.
         password: The password of the user.
-    Outputs:s
+    Outputs:
+        Returns True if the form was filled successfully.
     '''
     
     # Fill in the email filed with the given email.
     try:
         email_field = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="login_email_username"]')))
-        email_field.send_keys(eMail)                 
+        email_field.send_keys(email)                 
     except ElementNotInteractableException:
         raise Exception("Could not find email field.")
     
@@ -58,6 +59,8 @@ def fill_login_form(driver: webdriver.Firefox, email: str, password: str):
         password_field.send_keys(password)
     except ElementNotInteractableException:
         raise Exception("Could not find password field.")
+    
+    return True
 
 def main(arguments: argparse.Namespace):
       
