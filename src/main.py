@@ -1,15 +1,12 @@
 from selenium import webdriver
-from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import ElementNotInteractableException
 
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as exp_cond
 
 from re import compile
-from re import match
 import json
 import argparse
 
@@ -134,48 +131,54 @@ def main(arguments: argparse.Namespace):
         for sub_key, sub_value in enumerate(online_list):
             if "Online:" in online_list[sub_key].text:
                 online = online_list[sub_key].text
+                online = online.split('Online:')[1]
                 # print(title[0].text + "\n" + link + "\n" + online + "\n")
                 ad_dict[key] = {'name': title[0].text, 'link': link, 'online': online}
 
-    print(ad_dict)
     # check time of last script run
     now = time.time()
     print("Time: " + str(now))
     # only take adds that are new since last script run
 
-    # read existing hashs
+    # read existing hashes
     try:
         with open('hash_list.json', 'r') as openfile:
             old_hash_list = json.load(openfile)
-            print("Type old hash list:")
-            print(type(old_hash_list))
-            print(old_hash_list)
     except FileNotFoundError:
         "No file called hash_list.json"
         old_hash_list = []
-
+    print("Length of old hashes:\t" + str(len(old_hash_list)))
     # create hashs and write to hash-list if not existent
+    hashed_ad_dict = dict()
     for key, value in ad_dict.items():
-        print(key)
-        print(value)
         hash_created = hash(value['name'])
-        ad_dict[key]['hash_name'] = hash_created
-    hash_list = [value['hash_name'] for value in ad_dict.values()]
+        hashed_ad_dict[hash_created] = value
+    hash_list = list(hashed_ad_dict.keys())
     print("Length of collected hashes:\t" + str(len(hash_list)))
     updated_hash_list = list(set(hash_list + old_hash_list))
-    new_hashes = [value for value in hash_list if value not in old_hash_list]
     json_object = json.dumps(updated_hash_list, indent=4)
     with open("hash_list.json", "w") as outfile:
         outfile.write(json_object)
 
-    # get data on new ads
+    # only keep new ads
     for old_hash in old_hash_list:
         try:
-            ad_dict.pop(old_hash)
-        except:
+            hashed_ad_dict.pop(old_hash)
+        except KeyError:
             pass
+    print("Length of new hashes:\t" + str(len(hashed_ad_dict)))
+    # assemble message content
+    betreff = str(len(hashed_ad_dict)) + " new flats for your filter"
+    content = str(list(hashed_ad_dict.values()))
+    print(betreff)
+    print(content)
 
-    # send slack message
+    # Todo go through multiple pages
+    # Todo add information on peoples names and count
+    # Todo add information on mandatory questions
+    # Todo add persons name to hash
+
+    # send  message
 
     return ad_dict
     time.sleep(140)
