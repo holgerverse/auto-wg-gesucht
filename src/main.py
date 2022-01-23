@@ -15,6 +15,15 @@ import time
 filterName = "Köln again"
 
 
+def create_hash(text: str):
+    """ create hash function that generates equal hash for equal strings across multiple sessions as this is not the
+    case for the python hash function """
+    self_made_hash = 0
+    for ch in text:
+        self_made_hash = (self_made_hash*281 ^ ord(ch)*997) & 0xFFFFFFFF
+    return self_made_hash
+
+
 def get_cookie_button(driver: webdriver.Firefox):
     """
     Returns the cookie button element.
@@ -181,15 +190,17 @@ def main(arguments: argparse.Namespace):
     # create hashes and write to hash-list if not existent
     hashed_ad_dict = dict()
     for key, value in ad_dict.items():
-        hash_created = hash(value['title'] + value['contact'])
+        hash_created = create_hash(value['title'] + value['contact'])
         hashed_ad_dict[hash_created] = value
     hash_list = list(hashed_ad_dict.keys())
     print("Length of collected hashes:\t" + str(len(hash_list)))
     updated_hash_list = list(set(hash_list + old_hash_list))
     print("Length of new and old hashes combined:\t" + str(len(updated_hash_list)))
-    json_object = json.dumps(updated_hash_list, indent=4)
+    print(sorted(hash_list))
+    print(sorted(old_hash_list))
+    hash_json = json.dumps(updated_hash_list, indent=4)
     with open("hash_list.json", "w") as outfile:
-        outfile.write(json_object)
+        outfile.write(hash_json)
 
     # only keep new ads
     for old_hash in old_hash_list:
