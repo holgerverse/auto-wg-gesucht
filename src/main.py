@@ -181,7 +181,7 @@ def main(arguments: argparse.Namespace):
     # create hashes and write to hash-list if not existent
     hashed_ad_dict = dict()
     for key, value in ad_dict.items():
-        hash_created = hash(value['name'])
+        hash_created = hash(value['title'] + value['contact'])
         hashed_ad_dict[hash_created] = value
     hash_list = list(hashed_ad_dict.keys())
     print("Length of collected hashes:\t" + str(len(hash_list)))
@@ -215,8 +215,10 @@ def main(arguments: argparse.Namespace):
     print("\nGoing to the next page")
     # next_button[0].click()
 
+    # Todo fix hash comparison as it is not working
     # Todo add information on mandatory questions
-    # Todo add persons name to hash
+    # Todo remove balcony filter and create self-made balcony OR garden-filter
+    # Todo add list of no-go-words
 
     # send  message
 
