@@ -12,6 +12,8 @@ import argparse
 
 import time
 
+filterName = "Köln again"
+
 
 def get_cookie_button(driver: webdriver.Firefox):
     """
@@ -32,7 +34,7 @@ def get_button_by_xpath(driver, xpath):
     return xpath_object[0]
 
 
-def get_login_button(driver: webdriver.Firefox, class_name: str, regex: str) -> webdriver.remote.webelement.WebElement:
+def click_button_by_class_name(driver: webdriver.Firefox, class_name: str, regex: str = None, click=True):
     """
     Returns the login button element.
 
@@ -41,16 +43,23 @@ def get_login_button(driver: webdriver.Firefox, class_name: str, regex: str) -> 
     Outputs:
         Returns the login button element.
     """
-
     # Get all objects that are part of the class 'wgg_tertiary'. The Login button is part of this class.
     class_objects = driver.find_elements(By.CLASS_NAME, class_name)
     # Iterate over all objects inside the 'wgg_tertiary' class. Return the object which has the 'Login' inside the text
     # attribute.
-    pattern = compile(regex)
-    for key, value in enumerate(class_objects):
-        if pattern.match(class_objects[key].text):
-
-            return class_objects[key]
+    if regex:
+        pattern = compile(regex)
+        for key, value in enumerate(class_objects):
+            if pattern.match(class_objects[key].text):
+                right_key = key
+                break
+    else:
+        right_key = 0
+    if click:
+        class_objects[right_key].click()
+        return
+    else:
+        return class_objects[right_key]
 
 
 def fill_login_form(driver: webdriver.Firefox, email: str, password: str) -> bool:
@@ -84,6 +93,55 @@ def fill_login_form(driver: webdriver.Firefox, email: str, password: str) -> boo
     return True
 
 
+def go_to_filter_page(driver):
+    filter_page_reached = False
+    while not filter_page_reached:
+        mein_wggesucht_url = "https://www.wg-gesucht.de/mein-wg-gesucht-filter.html"
+        driver.get(mein_wggesucht_url)
+
+        # get filter div box
+        time.sleep(3)
+        try:
+            div_box = driver.find_elements(By.LINK_TEXT, filterName)
+            div_box[0].click()
+            filter_page_reached = True
+            print("Reached filter page.")
+        except IndexError:
+            login_button = driver.find_elements((By.LINK_TEXT, "Login"))
+            print("Type login button:" + str(type(login_button)))
+            print(login_button)
+            login_button[0].click()
+            continue
+
+
+def get_flat_ad_info_as_dict(driver):
+    ad_boxes_list = WebDriverWait(driver, 20).until(
+        exp_cond.visibility_of_all_elements_located((By.CLASS_NAME, 'card_body')))
+    print("Number of ads on page:\t" + str(len(ad_boxes_list)))
+    ad_dict = {}
+    for key, value in enumerate(ad_boxes_list):
+        title = value.find_elements(By.TAG_NAME, "h3")
+        sub_title = click_button_by_class_name(driver, "col-xs-11", None, False).text
+        people_count = int(sub_title.split('er WG')[0]) - 1
+        street = sub_title.split('| ')[2]
+        link = title[0].find_elements(By.LINK_TEXT, title[0].text)[0].get_attribute('href')
+        online_list = value.find_elements(By.CLASS_NAME, "flex_space_between")
+        for sub_key, sub_value in enumerate(online_list):
+            if "Online:" in online_list[sub_key].text:
+                online = online_list[sub_key].text
+                contact = online.split('Online:')[0].replace("\n", "")
+                online = online.split('Online:')[1]
+                ad_dict[key] = {
+                    'title': title[0].text,
+                    'link': link,
+                    'online': online,
+                    'contact': contact,
+                    'people_count': people_count,
+                    'street': street
+                }
+    return ad_dict
+
+
 def main(arguments: argparse.Namespace):
     # Create a new instance of the Firefox driver and open 'https://www.wg-gesucht.de/'.
     driver = webdriver.Firefox(executable_path=r'C:\Programme\geckodriver\geckodriver.exe')
@@ -94,51 +152,22 @@ def main(arguments: argparse.Namespace):
         cookie_button = get_cookie_button(driver)
         cookie_button.click()
     except AttributeError:
-        print('No cookie popup')
+        print('No cookie popup.\n')
 
     # Click the login button.
-    login_button = get_login_button(driver, "wgg_tertiary", "LOGIN")
-    login_button.click()
+    click_button_by_class_name(driver, "wgg_tertiary", "LOGIN")
 
     # Fill in the login form.
     fill_login_form(driver, arguments.email, arguments.password)
-    # login_button = get_login_button(driver, "wgg_blue", "login")
-    # login_button = get_button_by_xpath(driver, '//*[@id="login_submit"]')
     login_button = driver.find_elements(By.ID, "login_submit")
     login_button[0].click()
+    print("Login form filled.\n")
 
-    # Go to mein wggesucht
-    mein_wggesucht_url = "https://www.wg-gesucht.de/mein-wg-gesucht-filter.html"
-    driver.get(mein_wggesucht_url)
-
-    # get filter div box
-    time.sleep(3)
-    div_box = driver.find_elements(By.LINK_TEXT, "Köln again")
-    div_box[0].click()
+    # Go to existing filter
+    go_to_filter_page(driver)
 
     # get all flat ad-elements
-    ad_boxes_list = WebDriverWait(driver, 20).until(
-        exp_cond.visibility_of_all_elements_located((By.CLASS_NAME, 'card_body')))
-            # exp_cond.element_to_be_clickable((By.CLASS_NAME, 'card_body')))
-    # ad_boxes_list = driver.find_elements(By.CLASS_NAME, "card_body")
-    print("Number of ads on page:\t" + str(len(ad_boxes_list)))
-    ad_dict = {}
-    for key, value in enumerate(ad_boxes_list):
-        # print(type(value))
-        title = value.find_elements(By.TAG_NAME, "h3")
-        link = title[0].find_elements(By.LINK_TEXT, title[0].text)[0].get_attribute('href')
-        online_list = value.find_elements(By.CLASS_NAME, "flex_space_between")
-        for sub_key, sub_value in enumerate(online_list):
-            if "Online:" in online_list[sub_key].text:
-                online = online_list[sub_key].text
-                online = online.split('Online:')[1]
-                # print(title[0].text + "\n" + link + "\n" + online + "\n")
-                ad_dict[key] = {'name': title[0].text, 'link': link, 'online': online}
-
-    # check time of last script run
-    now = time.time()
-    print("Time: " + str(now))
-    # only take adds that are new since last script run
+    ad_dict = get_flat_ad_info_as_dict(driver)
 
     # read existing hashes
     try:
@@ -148,7 +177,8 @@ def main(arguments: argparse.Namespace):
         "No file called hash_list.json"
         old_hash_list = []
     print("Length of old hashes:\t" + str(len(old_hash_list)))
-    # create hashs and write to hash-list if not existent
+
+    # create hashes and write to hash-list if not existent
     hashed_ad_dict = dict()
     for key, value in ad_dict.items():
         hash_created = hash(value['name'])
@@ -156,6 +186,7 @@ def main(arguments: argparse.Namespace):
     hash_list = list(hashed_ad_dict.keys())
     print("Length of collected hashes:\t" + str(len(hash_list)))
     updated_hash_list = list(set(hash_list + old_hash_list))
+    print("Length of new and old hashes combined:\t" + str(len(updated_hash_list)))
     json_object = json.dumps(updated_hash_list, indent=4)
     with open("hash_list.json", "w") as outfile:
         outfile.write(json_object)
@@ -173,16 +204,25 @@ def main(arguments: argparse.Namespace):
     print(betreff)
     print(content)
 
-    # Todo go through multiple pages
-    # Todo add information on peoples names and count
+    # save results for review
+    content_json = json.dumps(content, indent=4)
+    with open("flat_content.json", "w") as outfile:
+        outfile.write(content_json)
+
+    # Going to the next page
+    click_button_by_class_name(driver, "next")
+    # next_button = driver.find_elements(By.CLASS_NAME, "next")
+    print("\nGoing to the next page")
+    # next_button[0].click()
+
     # Todo add information on mandatory questions
     # Todo add persons name to hash
 
     # send  message
 
     return ad_dict
-    time.sleep(140)
-    driver.close()
+    # time.sleep(140)
+    # driver.close()
 
 
 if __name__ == "__main__":
