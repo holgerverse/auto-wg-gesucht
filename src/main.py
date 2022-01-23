@@ -93,6 +93,10 @@ def main(arguments: argparse.Namespace):
             next_page_available = False
 
     # iterate over message content
+    for key, flat_ad in new_ads_dict.items():
+        driver.get(flat_ad['link'])
+        flat_ad_text = driver.find_element_by_id('ad_description_text').text
+        new_ads_dict[key]['text'] = flat_ad_text
 
     # assemble message content
     betreff = str(len(new_ads_dict)) + " new flats for your filter"
