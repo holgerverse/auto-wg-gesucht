@@ -1,16 +1,32 @@
+import re
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as exp_cond
 
 import json
 import argparse
 
-import time
-
+from time import sleep
 from helper_functions import get_cookie_button, click_button_by_class_name, fill_login_form, go_to_filter_page, \
     get_flat_ad_info_as_dict, create_hash
 
 filterName = "Köln again"
+nogo_words = ['burschenschaft', 'verbindung']
+
+
+def find_no_go_ads(no_go_word_list, text, ad_key, link):
+    no_go_regex = re.compile("(" + ")|(".join(no_go_word_list) + ")")
+    no_go_result = no_go_regex.search(text.lower())
+    if no_go_result:
+        context = text[no_go_result.start() - 100: no_go_result.end() + 100]
+        print("Filtered out text:\n" + context)
+        no_go_file = "filtered_out_no_go_" + str(ad_key) + ".txt"
+        with open(no_go_file, "w") as outfile:
+            outfile.write(link + "\n" + context)
+        return ad_key
+
 
 
 def main(arguments: argparse.Namespace):
@@ -93,10 +109,23 @@ def main(arguments: argparse.Namespace):
             next_page_available = False
 
     # iterate over message content
+    print(str(len(new_ads_dict.keys())) + " new links to iterate over...")
+    flats_to_remove = []  # delete later
     for key, flat_ad in new_ads_dict.items():
         driver.get(flat_ad['link'])
-        flat_ad_text = driver.find_element_by_id('ad_description_text').text
-        new_ads_dict[key]['text'] = flat_ad_text
+        flat_ad_text = WebDriverWait(driver, 10).until(
+            exp_cond.visibility_of_element_located((By.ID, 'ad_description_text')))
+        # new_ads_dict[key]['text'] = flat_ad_text.text
+        print(flat_ad['link'])
+        # filter out ads with no-go-words in ad-text
+        no_go_key = find_no_go_ads(nogo_words, flat_ad_text.text, key, flat_ad['link'])
+        assert no_go_key is None or key == no_go_key
+        if no_go_key:
+            flats_to_remove.append(key)
+
+    # iterate over filtered out keys and remove the entries from dict
+    for flat_key in flats_to_remove:
+        new_ads_dict.pop(flat_key)
 
     # assemble message content
     betreff = str(len(new_ads_dict)) + " new flats for your filter"
@@ -113,7 +142,6 @@ def main(arguments: argparse.Namespace):
     # Todo fix problem with German special characters when saving content to json
     # Todo add information on mandatory questions
     # Todo remove balcony filter and create self-made balcony OR garden-filter
-    # Todo add list of no-go-words
     # Todo add proper logging
 
     # close window after sleep period for debugging
