@@ -1,4 +1,4 @@
-import re
+import os
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -9,24 +9,12 @@ import json
 import argparse
 
 from time import sleep
-from helper_functions import get_cookie_button, click_button_by_class_name, fill_login_form, go_to_filter_page, \
-    get_flat_ad_info_as_dict, create_hash
+from src.helpers_page_handling import get_cookie_button, click_button_by_class_name, fill_login_form, go_to_filter_page
+from src.helpers_ad_handling import get_context_for_word_list, create_hash, get_flat_ad_info_as_dict
 
 filterName = "Köln again"
-nogo_words = ['burschenschaft', 'verbindung']
-
-
-def find_no_go_ads(no_go_word_list, text, ad_key, link):
-    no_go_regex = re.compile("(" + ")|(".join(no_go_word_list) + ")")
-    no_go_result = no_go_regex.search(text.lower())
-    if no_go_result:
-        context = text[no_go_result.start() - 100: no_go_result.end() + 100]
-        print("Filtered out text:\n" + context)
-        no_go_file = "filtered_out_no_go_" + str(ad_key) + ".txt"
-        with open(no_go_file, "w") as outfile:
-            outfile.write(link + "\n" + context)
-        return ad_key
-
+blackList = ['burschenschaft', 'verbindung']
+highlightWords = ['garten', 'van']
 
 
 def main(arguments: argparse.Namespace):
@@ -63,7 +51,7 @@ def main(arguments: argparse.Namespace):
 
         # read existing hashes
         try:
-            with open('hash_list.json', 'r') as openfile:
+            with open(os.path.join("..", "outputs", 'hash_list.json'), 'r') as openfile:
                 old_hash_list = json.load(openfile)
         except FileNotFoundError:
             "No file called hash_list.json"
@@ -80,7 +68,7 @@ def main(arguments: argparse.Namespace):
         updated_hash_list = list(set(hash_list + old_hash_list))
         print("Number of new and old hashes combined:\t" + str(len(updated_hash_list)))
         updated_hash_json = json.dumps(updated_hash_list, indent=4)
-        with open("hash_list.json", "w") as outfile:
+        with open(os.path.join("..", "outputs", "hash_list.json"), "w") as outfile:
             outfile.write(updated_hash_json)
 
         # Remove known ads
@@ -106,21 +94,28 @@ def main(arguments: argparse.Namespace):
         except IndexError:  # if there is no next page we can end the loop
             print("No next page.\n")
             break
+    # DELETE LATER: remove hashes to have enough ads for working on the code
+    os.remove(os.path.join("..", "outputs", "hash_list.json"))
 
     # iterate over message content
     print(str(len(new_ads_dict.keys())) + " new links to iterate over...")
-    flats_to_remove = []  # delete later
+    flats_to_remove = []
     for key, flat_ad in new_ads_dict.items():
         driver.get(flat_ad['link'])
         flat_ad_text = WebDriverWait(driver, 10).until(
             exp_cond.visibility_of_element_located((By.ID, 'ad_description_text')))
-        # new_ads_dict[key]['text'] = flat_ad_text.text
+        last_300_letters = flat_ad_text.text[-300:]
         print(flat_ad['link'])
         # filter out ads with no-go-words in ad-text
-        no_go_key = find_no_go_ads(nogo_words, flat_ad_text.text, key, flat_ad['link'])
-        assert no_go_key is None or key == no_go_key
-        if no_go_key:
+        no_go_context = get_context_for_word_list(blackList, flat_ad_text.text, key, flat_ad['link'], "blacklist_case_")
+        if no_go_context:
             flats_to_remove.append(key)
+        # check for highlight words
+        highlight_context = get_context_for_word_list(highlightWords, flat_ad_text.text, key, flat_ad['link'],
+                                                      "marked_highlight_")
+        if highlight_context:
+            # highlights.update({key: highlight_context})
+            new_ads_dict[key]['highlight'] = highlight_context
 
     # iterate over filtered out keys and remove the entries from dict
     for flat_key in flats_to_remove:
@@ -132,14 +127,15 @@ def main(arguments: argparse.Namespace):
         print(betreff)
         # save results for review
         content_json = json.dumps(new_ads_dict, indent=4)
-        with open("flat_content.json", "w") as outfile:
+        with open(os.path.join("..", "outputs", "flat_content.json"), "w") as outfile:
             outfile.write(content_json)
 
-    # Todo fix problem with German special characters when saving content to json
     # Todo add information on mandatory questions
     # Todo remove balcony filter and create self-made balcony OR garden-filter
     # Todo add proper logging
     # Todo add time of ad to logging for later statistical analysis
+    # Todo fix problem with German special characters when saving content to json
+    # Todo REFACTOR (Add function descriptions, add data input and output type)
 
     # close window after sleep period for debugging
     sleep(140)
