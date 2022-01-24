@@ -55,8 +55,9 @@ def main(arguments: argparse.Namespace):
 
     # Iterate over pages until there are no further pages or there are no new ads
     new_ads_dict = dict()
-    next_page_available = True
-    while next_page_available:
+    on_page = 1
+    while on_page:
+        print("On flat ad page " + str(on_page) + " -----------------------------------------")
         # get all flat ad-elements
         ad_dict = get_flat_ad_info_as_dict(driver)
 
@@ -67,7 +68,7 @@ def main(arguments: argparse.Namespace):
         except FileNotFoundError:
             "No file called hash_list.json"
             old_hash_list = []
-        print("Length of old hashes:\t" + str(len(old_hash_list)))
+        print("Number of old hashes:\t" + str(len(old_hash_list)))
 
         # create hashes and write to hash-list if not existent
         hashed_ad_dict = dict()
@@ -75,38 +76,36 @@ def main(arguments: argparse.Namespace):
             hash_created = create_hash(value['title'] + value['contact'])
             hashed_ad_dict[hash_created] = value
         hash_list = list(hashed_ad_dict.keys())
-        print("Length of collected hashes:\t" + str(len(hash_list)))
+        print("Number of collected hashes:\t" + str(len(hash_list)))
         updated_hash_list = list(set(hash_list + old_hash_list))
-        print("Length of new and old hashes combined:\t" + str(len(updated_hash_list)))
-        print([el for el in hash_list if el not in old_hash_list])
+        print("Number of new and old hashes combined:\t" + str(len(updated_hash_list)))
         updated_hash_json = json.dumps(updated_hash_list, indent=4)
         with open("hash_list.json", "w") as outfile:
             outfile.write(updated_hash_json)
 
-        # only keep new ads
+        # Remove known ads
         for old_hash in old_hash_list:
             try:
                 hashed_ad_dict.pop(old_hash)
             except KeyError:
                 pass
         new_hashes = len(hashed_ad_dict)
-        print("Length of new hashes:\t" + str(new_hashes))
+        print("Number of new hashes:\t" + str(new_hashes))
         # if there are no new flat ads on this page, there won't be new ones on the next page so we can stop here
         if new_hashes == 0:
             break
-        # if there are new flat ads, add them to the dictionary collecting new flats from all pages
-        else:
+        else:  # if there are new flat ads, add them to the dictionary collecting new flats from all pages
             new_ads_dict.update(hashed_ad_dict)
 
         # Going to the next page
         try:
             next_page_button = driver.find_elements(By.CLASS_NAME, "next")
             next_page_button[0].click()
-            print("\nGoing to the next page")
-            next_page_available = True
-        # if there is no next page we can end the loop
-        except IndexError:
-            next_page_available = False
+            on_page += 1
+            print("Going to the next page (" + str(on_page) + ").\n")
+        except IndexError:  # if there is no next page we can end the loop
+            print("No next page.\n")
+            break
 
     # iterate over message content
     print(str(len(new_ads_dict.keys())) + " new links to iterate over...")
@@ -129,23 +128,21 @@ def main(arguments: argparse.Namespace):
 
     # assemble message content
     betreff = str(len(new_ads_dict)) + " new flats for your filter"
-    content = str(list(new_ads_dict.values()))
     if len(new_ads_dict) > 0:
         print(betreff)
-        print(content)
         # save results for review
         content_json = json.dumps(new_ads_dict, indent=4)
         with open("flat_content.json", "w") as outfile:
             outfile.write(content_json)
 
-    # Todo count pages and mention page in comment
     # Todo fix problem with German special characters when saving content to json
     # Todo add information on mandatory questions
     # Todo remove balcony filter and create self-made balcony OR garden-filter
     # Todo add proper logging
+    # Todo add time of ad to logging for later statistical analysis
 
     # close window after sleep period for debugging
-    time.sleep(140)
+    sleep(140)
     driver.close()
     # send  message
     return new_ads_dict

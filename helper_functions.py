@@ -108,7 +108,7 @@ def go_to_filter_page(driver, filter_name):
             filter_page_reached = True
             print("Reached filter page.")
         except IndexError:
-            login_button = driver.find_elements_by_tag_name("button")
+            login_button = WebDriverWait(driver, 10).until(exp_cond.element_to_be_clickable((By.TAG_NAME, 'button')))
             print("Type login button:" + str(type(login_button)))
             print(login_button)
             login_button[0].click()
