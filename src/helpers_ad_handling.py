@@ -8,7 +8,6 @@ from selenium.webdriver.common.by import By
 from src.helpers_general import try_read_json_file, save_file_to_json
 from src.helpers_page_handling import go_to_next_flat_ad_page
 
-
 def create_hash(text: str):
     """ create hash function that generates equal hash for equal strings across multiple sessions as this is not the
     case for the python hash function """
@@ -42,7 +41,9 @@ def get_relevant_info_from_ad_box(ad_box):
     link = title[0].find_elements_by_link_text(title[0].text)[0].get_attribute('href')
     # time of upload info
     online_list = ad_box.find_elements_by_class_name("flex_space_between")
+
     online_list_text_values = [el.text for el in online_list if 'Online: ' in el.text]
+
     for el_text in online_list_text_values:
         contact = el_text.split('Online:')[0].replace("\n", "")
         online_since = el_text.split('Online:')[1]
