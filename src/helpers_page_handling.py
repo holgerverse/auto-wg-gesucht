@@ -21,6 +21,15 @@ def get_cookie_button(driver: Firefox):
             return class_objects[key]
 
 
+def click_cookie_button(driver):
+    """function to click cookie button and give notice if not present"""
+    try:
+        cookie_button = get_cookie_button(driver)
+        cookie_button.click()
+    except AttributeError:
+        print('No cookie pop-up.\n')
+
+
 def get_button_by_xpath(driver, xpath):
     xpath_object = driver.find_elements_by_path(xpath)
     return xpath_object[0]
@@ -85,6 +94,14 @@ def fill_login_form(driver: Firefox, email: str, password: str) -> bool:
     return True
 
 
+def fill_login_form_and_click(driver, email, password):
+    click_button_by_class_name(driver, "wgg_tertiary", "LOGIN")
+    fill_login_form(driver, email, password)
+    login_button = driver.find_elements_by_id("login_submit")
+    login_button[0].click()
+    print("Login form filled.\n")
+
+
 def go_to_filter_page(driver, filter_name):
     filter_page_reached = False
     while not filter_page_reached:
@@ -104,3 +121,14 @@ def go_to_filter_page(driver, filter_name):
             print(login_button)
             login_button[0].click()
             continue
+
+
+def go_to_next_flat_ad_page(driver, page_number):
+    try:
+        next_page_button = driver.find_elements(By.CLASS_NAME, "next")
+        next_page_button[0].click()
+        page_number += 1
+        print("Going to the next page (" + str(page_number) + ").\n")
+        return page_number
+    except IndexError:  # if there is no next page we can end the loop
+        print("No next page.\n")
