@@ -1,6 +1,6 @@
 name: Python Code Base
 
-on: 
+on:
   push:
     branches:
       - main
@@ -30,7 +30,7 @@ jobs:
         with:
           miniconda-version: "latest"
           activate-environment: auto-wg-gesucht
-  
+
       - name: Lint with flake8
         run: |
           conda install flake8
